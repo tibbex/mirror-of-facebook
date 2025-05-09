@@ -7,7 +7,7 @@ import NewsFeed from '@/components/feed/NewsFeed';
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-facebook-bg">
+    <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="flex justify-center">
         <LeftSidebar />
