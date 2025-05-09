@@ -17,10 +17,12 @@ import Settings from "./pages/Settings";
 // Create auth context to manage authentication state
 export const AuthContext = createContext<{
   isAuthenticated: boolean;
+  isGuest: boolean;
   login: () => void;
   logout: () => void;
 }>({
   isAuthenticated: false,
+  isGuest: false,
   login: () => {},
   logout: () => {},
 });
@@ -29,12 +31,19 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isGuest, setIsGuest] = useState<boolean>(false);
 
   // Check if user is logged in on initial load
   useEffect(() => {
     const userLoggedIn = localStorage.getItem("eduHubUser");
+    const guestLoggedIn = localStorage.getItem("eduHubGuest");
+    
     if (userLoggedIn) {
       setIsAuthenticated(true);
+      setIsGuest(false);
+    } else if (guestLoggedIn) {
+      setIsAuthenticated(true);
+      setIsGuest(true);
     }
   }, []);
 
@@ -46,11 +55,13 @@ const App = () => {
 
   const logout = () => {
     setIsAuthenticated(false);
+    setIsGuest(false);
     localStorage.removeItem("eduHubUser");
+    localStorage.removeItem("eduHubGuest");
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isGuest, login, logout }}>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />

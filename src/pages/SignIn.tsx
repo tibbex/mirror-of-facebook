@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { AuthContext } from "../App";
+import GuestLoginButton from "../components/auth/GuestLoginButton";
+import { Separator } from "@/components/ui/separator";
 
 const SignIn = () => {
   const [username, setUsername] = useState('');
@@ -68,6 +70,15 @@ const SignIn = () => {
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
+          
+          <div className="relative my-4">
+            <Separator />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-muted-foreground">
+              OR
+            </span>
+          </div>
+          
+          <GuestLoginButton />
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-center text-sm">
