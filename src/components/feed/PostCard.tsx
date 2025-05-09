@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, ThumbsUp, MessageCircle, Share2 } from "lucide-react";
+import { MoreHorizontal, ThumbsUp, MessageCircle, Share2, Image } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -34,6 +34,8 @@ const PostCard = ({ post }: PostCardProps) => {
   const [likeCount, setLikeCount] = useState(post.likes);
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
+  const [commentsList, setCommentsList] = useState<{text: string, user: {name: string, profilePic: string}}[]>([]);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const handleLike = () => {
     if (liked) {
@@ -46,8 +48,18 @@ const PostCard = ({ post }: PostCardProps) => {
 
   const handleComment = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && commentText.trim()) {
-      toast.success("Comment posted successfully!");
+      // Add the new comment to the list
+      const newComment = {
+        text: commentText,
+        user: {
+          name: post.user.name,
+          profilePic: post.user.profilePic
+        }
+      };
+      
+      setCommentsList([...commentsList, newComment]);
       setCommentText("");
+      toast.success("Comment posted successfully!");
     }
   };
 
@@ -105,7 +117,7 @@ const PostCard = ({ post }: PostCardProps) => {
               className="text-gray-500 hover:bg-transparent hover:underline p-0"
               onClick={() => setShowComments(!showComments)}
             >
-              {post.comments} comments
+              {commentsList.length > 0 ? commentsList.length : post.comments} comments
             </Button>
             <Button 
               variant="ghost" 
@@ -128,7 +140,7 @@ const PostCard = ({ post }: PostCardProps) => {
                   onClick={handleLike}
                 >
                   <ThumbsUp className="h-5 w-5 mr-2" />
-                  Like
+                  <span className="hidden sm:inline">Like</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{liked ? 'Unlike' : 'Like'}</TooltipContent>
@@ -141,7 +153,7 @@ const PostCard = ({ post }: PostCardProps) => {
             onClick={() => setShowComments(!showComments)}
           >
             <MessageCircle className="h-5 w-5 mr-2" />
-            Comment
+            <span className="hidden sm:inline">Comment</span>
           </Button>
 
           <Button 
@@ -150,7 +162,7 @@ const PostCard = ({ post }: PostCardProps) => {
             onClick={handleShare}
           >
             <Share2 className="h-5 w-5 mr-2" />
-            Share
+            <span className="hidden sm:inline">Share</span>
           </Button>
         </div>
       </CardFooter>
@@ -170,9 +182,27 @@ const PostCard = ({ post }: PostCardProps) => {
               onKeyDown={handleComment}
             />
           </div>
-          <div className="text-sm text-center text-gray-500 my-2">
-            Be the first to comment on this post.
-          </div>
+          
+          {commentsList.length > 0 ? (
+            <div className="space-y-2 mt-3">
+              {commentsList.map((comment, index) => (
+                <div key={index} className="flex items-start space-x-2">
+                  <Avatar className="h-7 w-7">
+                    <AvatarImage src={comment.user.profilePic} alt={comment.user.name} />
+                    <AvatarFallback>{comment.user.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="bg-gray-100 rounded-2xl px-3 py-2">
+                    <p className="text-xs font-medium">{comment.user.name}</p>
+                    <p className="text-sm">{comment.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-center text-gray-500 my-2">
+              Be the first to comment on this post.
+            </div>
+          )}
         </div>
       )}
     </Card>

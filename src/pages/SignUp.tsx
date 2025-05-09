@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
+import { AuthContext } from "../App";
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
@@ -19,6 +20,7 @@ const SignUp = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -29,9 +31,10 @@ const SignUp = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate registration - in real app, this would use Firebase for OTP and Supabase for user creation
+    // Simulate registration - in real app, this would connect to Supabase and Firebase for OTP
     setTimeout(() => {
       setIsLoading(false);
+      login(); // Update auth state
       toast.success("Account created successfully!");
       navigate('/');
     }, 1500);

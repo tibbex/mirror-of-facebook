@@ -1,30 +1,51 @@
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import Header from '@/components/layout/Header';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { BookOpen, Download, Upload, File } from 'lucide-react';
+import { toast } from "sonner";
 
-const ResourceCard = ({ title, author, type, downloads }: { title: string; author: string; type: string; downloads: string }) => (
+interface Resource {
+  id: number;
+  title: string;
+  author: string;
+  type: string;
+  downloads: string;
+  file?: File;
+}
+
+const ResourceCard = ({ 
+  resource, 
+  onDownload 
+}: { 
+  resource: Resource; 
+  onDownload: (id: number) => void;
+}) => (
   <Card className="overflow-hidden">
     <CardContent className="p-4">
       <div className="flex items-start">
         <div className="bg-blue-100 p-3 rounded-lg mr-3">
-          {type === 'book' ? 
+          {resource.type === 'book' ? 
             <BookOpen className="h-6 w-6 text-blue-700" /> : 
             <File className="h-6 w-6 text-blue-700" />
           }
         </div>
         <div className="flex-1">
-          <h3 className="font-medium line-clamp-2">{title}</h3>
-          <p className="text-sm text-gray-500">{author}</p>
-          <p className="text-xs text-gray-500">{downloads} downloads • {type}</p>
+          <h3 className="font-medium line-clamp-2">{resource.title}</h3>
+          <p className="text-sm text-gray-500">{resource.author}</p>
+          <p className="text-xs text-gray-500">{resource.downloads} downloads • {resource.type}</p>
         </div>
       </div>
     </CardContent>
     <CardFooter className="p-3 pt-0 flex justify-end">
-      <Button variant="ghost" size="sm" className="text-blue-600">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="text-blue-600"
+        onClick={() => onDownload(resource.id)}
+      >
         <Download className="h-4 w-4 mr-1" />
         Download
       </Button>
@@ -33,8 +54,8 @@ const ResourceCard = ({ title, author, type, downloads }: { title: string; autho
 );
 
 const Resources = () => {
-  // Sample resource data
-  const resources = [
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resources, setResources] = useState<Resource[]>([
     { 
       id: 1, 
       title: "Biology Study Guide: Cell Structure and Function", 
@@ -77,7 +98,74 @@ const Resources = () => {
       type: "worksheet", 
       downloads: "1,352" 
     },
-  ];
+  ]);
+
+  const handleUploadClick = () => {
+    // Open file browser when upload button is clicked
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // Create new resource with the uploaded file
+      const newResource: Resource = {
+        id: resources.length + 1,
+        title: file.name.substring(0, file.name.lastIndexOf('.')),
+        author: currentUser.name,
+        type: file.type.includes('pdf') ? 'book' : 'worksheet',
+        downloads: "0",
+        file: file
+      };
+      
+      setResources([newResource, ...resources]);
+      toast.success("Resource uploaded successfully!");
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDownload = (id: number) => {
+    const resource = resources.find(r => r.id === id);
+    if (resource) {
+      // If we have an actual file (newly uploaded), download it
+      if (resource.file) {
+        const url = URL.createObjectURL(resource.file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = resource.file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        // For mock resources
+        toast.success(`Downloading ${resource.title}...`);
+      }
+      
+      // Update download count
+      setResources(resources.map(r => {
+        if (r.id === id) {
+          const downloadsNum = parseInt(r.downloads.replace(/,/g, '')) + 1;
+          return {
+            ...r,
+            downloads: downloadsNum.toLocaleString()
+          };
+        }
+        return r;
+      }));
+    }
+  };
+
+  // Get current user from mock data for the upload feature
+  const currentUser = {
+    name: "Jane Doe"
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -87,20 +175,30 @@ const Resources = () => {
         <main className="flex-1 max-w-5xl p-4">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold">Learning Resources</h1>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Resource
-            </Button>
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              />
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={handleUploadClick}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Resource
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {resources.map(resource => (
               <ResourceCard 
                 key={resource.id}
-                title={resource.title}
-                author={resource.author}
-                type={resource.type}
-                downloads={resource.downloads}
+                resource={resource}
+                onDownload={handleDownload}
               />
             ))}
           </div>

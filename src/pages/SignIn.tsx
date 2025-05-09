@@ -1,24 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
+import { AuthContext } from "../App";
 
 const SignIn = () => {
   const [username, setUsername] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate authentication - in real app, this would use Supabase
+    // Simulate authentication - in real app, this would connect to Supabase
     setTimeout(() => {
       setIsLoading(false);
+      login(); // Update auth state
       toast.success("Successfully signed in!");
       navigate('/');
     }, 1500);
