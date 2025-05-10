@@ -23,7 +23,7 @@ interface Resource {
   }
 }
 
-interface ResourceData {
+interface SupabaseResource {
   id: string;
   title: string;
   description: string | null;
@@ -31,10 +31,6 @@ interface ResourceData {
   category: string | null;
   created_at: string;
   user_id: string;
-  profiles: {
-    id: string;
-    full_name: string | null;
-  }[] | null;
 }
 
 const Resources = () => {
@@ -48,7 +44,8 @@ const Resources = () => {
       try {
         setIsLoading(true);
         
-        const { data, error } = await supabase
+        // Get resources from Supabase
+        const { data: resourcesData, error: resourcesError } = await supabase
           .from('resources')
           .select(`
             id, 
@@ -57,26 +54,46 @@ const Resources = () => {
             file_url, 
             category,
             created_at,
-            user_id,
-            profiles(id, full_name)
+            user_id
           `)
           .order('created_at', { ascending: false });
           
-        if (error) throw error;
+        if (resourcesError) throw resourcesError;
         
-        if (data) {
-          const formattedResources = data.map((resource: ResourceData) => ({
-            id: resource.id,
-            title: resource.title,
-            description: resource.description || undefined,
-            file_url: resource.file_url || undefined,
-            category: resource.category || undefined,
-            created_at: new Date(resource.created_at).toLocaleString(),
-            user: {
-              id: resource.user_id,
-              name: resource.profiles?.[0]?.full_name || 'Unknown User'
-            }
-          }));
+        if (resourcesData) {
+          // Get profiles for the resource creators
+          const userIds = [...new Set(resourcesData.map(resource => resource.user_id))];
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+            
+          if (profilesError) throw profilesError;
+          
+          // Create a map of user profiles for quick lookup
+          const profileMap = new Map();
+          if (profilesData) {
+            profilesData.forEach(profile => {
+              profileMap.set(profile.id, profile);
+            });
+          }
+          
+          // Transform data to match our Resource interface
+          const formattedResources = resourcesData.map((resource: SupabaseResource) => {
+            const profile = profileMap.get(resource.user_id);
+            return {
+              id: resource.id,
+              title: resource.title,
+              description: resource.description || undefined,
+              file_url: resource.file_url || undefined,
+              category: resource.category || undefined,
+              created_at: new Date(resource.created_at).toLocaleString(),
+              user: {
+                id: resource.user_id,
+                name: profile?.full_name || 'Unknown User'
+              }
+            };
+          });
           
           setResources(formattedResources);
         }

@@ -24,8 +24,7 @@ interface Post {
   timestamp: string;
 }
 
-// Define the shape of the data returned from Supabase
-interface PostData {
+interface SupabasePost {
   id: string;
   content: string;
   image_url: string | null;
@@ -34,11 +33,6 @@ interface PostData {
   shares: number | null;
   created_at: string;
   user_id: string;
-  profiles: {
-    id: string;
-    full_name: string | null;
-    avatar_url: string | null;
-  }[] | null;
 }
 
 const NewsFeed = () => {
@@ -58,8 +52,8 @@ const NewsFeed = () => {
       try {
         setIsLoading(true);
         
-        // Get posts from Supabase with proper join
-        const { data, error } = await supabase
+        // Get posts from Supabase
+        const { data: postsData, error: postsError } = await supabase
           .from('posts')
           .select(`
             id, 
@@ -69,31 +63,52 @@ const NewsFeed = () => {
             comments, 
             shares, 
             created_at,
-            user_id,
-            profiles(id, full_name, avatar_url)
+            user_id
           `)
           .order('created_at', { ascending: false });
         
-        if (error) {
-          throw error;
+        if (postsError) {
+          throw postsError;
         }
         
-        if (data) {
+        if (postsData) {
+          // Get profiles for users
+          const userIds = [...new Set(postsData.map(post => post.user_id))];
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .in('id', userIds);
+            
+          if (profilesError) {
+            throw profilesError;
+          }
+          
+          // Create a map of user profiles for quick lookup
+          const profileMap = new Map();
+          if (profilesData) {
+            profilesData.forEach(profile => {
+              profileMap.set(profile.id, profile);
+            });
+          }
+          
           // Transform data to match our Post interface
-          const transformedPosts: Post[] = data.map((post: PostData) => ({
-            id: post.id,
-            user: {
-              id: post.user_id,
-              name: post.profiles?.[0]?.full_name || 'Unknown User',
-              profilePic: post.profiles?.[0]?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-            },
-            content: post.content,
-            image: post.image_url || undefined,
-            likes: post.likes || 0,
-            comments: post.comments || 0,
-            shares: post.shares || 0,
-            timestamp: new Date(post.created_at).toLocaleString()
-          }));
+          const transformedPosts: Post[] = postsData.map((post: SupabasePost) => {
+            const profile = profileMap.get(post.user_id);
+            return {
+              id: post.id,
+              user: {
+                id: post.user_id,
+                name: profile?.full_name || 'Unknown User',
+                profilePic: profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+              },
+              content: post.content,
+              image: post.image_url || undefined,
+              likes: post.likes || 0,
+              comments: post.comments || 0,
+              shares: post.shares || 0,
+              timestamp: new Date(post.created_at).toLocaleString()
+            };
+          });
           
           setPosts(transformedPosts);
         }

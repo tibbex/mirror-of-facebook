@@ -23,7 +23,7 @@ interface Video {
   }
 }
 
-interface VideoData {
+interface SupabaseVideo {
   id: string;
   title: string;
   description: string | null;
@@ -31,10 +31,6 @@ interface VideoData {
   thumbnail_url: string | null;
   created_at: string;
   user_id: string;
-  profiles: {
-    id: string;
-    full_name: string | null;
-  }[] | null;
 }
 
 const Videos = () => {
@@ -48,7 +44,8 @@ const Videos = () => {
       try {
         setIsLoading(true);
         
-        const { data, error } = await supabase
+        // Get videos from Supabase
+        const { data: videosData, error: videosError } = await supabase
           .from('videos')
           .select(`
             id, 
@@ -57,26 +54,46 @@ const Videos = () => {
             video_url, 
             thumbnail_url, 
             created_at,
-            user_id,
-            profiles(id, full_name)
+            user_id
           `)
           .order('created_at', { ascending: false });
           
-        if (error) throw error;
+        if (videosError) throw videosError;
         
-        if (data) {
-          const formattedVideos = data.map((video: VideoData) => ({
-            id: video.id,
-            title: video.title,
-            description: video.description || undefined,
-            video_url: video.video_url,
-            thumbnail_url: video.thumbnail_url || undefined,
-            created_at: new Date(video.created_at).toLocaleString(),
-            user: {
-              id: video.user_id,
-              name: video.profiles?.[0]?.full_name || 'Unknown User'
-            }
-          }));
+        if (videosData) {
+          // Get profiles for the video creators
+          const userIds = [...new Set(videosData.map(video => video.user_id))];
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+            
+          if (profilesError) throw profilesError;
+          
+          // Create a map of user profiles for quick lookup
+          const profileMap = new Map();
+          if (profilesData) {
+            profilesData.forEach(profile => {
+              profileMap.set(profile.id, profile);
+            });
+          }
+          
+          // Transform data to match our Video interface
+          const formattedVideos = videosData.map((video: SupabaseVideo) => {
+            const profile = profileMap.get(video.user_id);
+            return {
+              id: video.id,
+              title: video.title,
+              description: video.description || undefined,
+              video_url: video.video_url,
+              thumbnail_url: video.thumbnail_url || undefined,
+              created_at: new Date(video.created_at).toLocaleString(),
+              user: {
+                id: video.user_id,
+                name: profile?.full_name || 'Unknown User'
+              }
+            };
+          });
           
           setVideos(formattedVideos);
         }

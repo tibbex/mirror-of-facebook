@@ -27,15 +27,20 @@ interface Post {
   timestamp: string;
 }
 
-interface CommentData {
+interface SupabaseComment {
   id: string;
   content: string;
   created_at: string;
   user_id: string;
-  profiles: {
-    full_name: string | null;
-    avatar_url: string | null;
-  }[] | null;
+}
+
+interface Comment {
+  id: string;
+  text: string;
+  user: {
+    name: string;
+    profilePic: string;
+  }
 }
 
 interface PostCardProps {
@@ -48,7 +53,7 @@ const PostCard = ({ post }: PostCardProps) => {
   const [likeCount, setLikeCount] = useState(post.likes);
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
-  const [commentsList, setCommentsList] = useState<{text: string, user: {name: string, profilePic: string}, id: string}[]>([]);
+  const [commentsList, setCommentsList] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,31 +64,54 @@ const PostCard = ({ post }: PostCardProps) => {
     try {
       setIsLoadingComments(true);
       
-      const { data, error } = await supabase
+      // Get comments for this post
+      const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
         .select(`
           id,
           content,
           created_at,
-          user_id,
-          profiles(full_name, avatar_url)
+          user_id
         `)
         .eq('post_id', post.id)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (commentsError) throw commentsError;
       
-      if (data) {
-        const formattedComments = data.map((comment: CommentData) => ({
-          id: comment.id,
-          text: comment.content,
-          user: {
-            name: comment.profiles?.[0]?.full_name || 'Unknown User',
-            profilePic: comment.profiles?.[0]?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-          }
-        }));
+      if (commentsData && commentsData.length > 0) {
+        // Get profiles for comment authors
+        const userIds = [...new Set(commentsData.map(comment => comment.user_id))];
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', userIds);
+          
+        if (profilesError) throw profilesError;
+        
+        // Create a map of user profiles for quick lookup
+        const profileMap = new Map();
+        if (profilesData) {
+          profilesData.forEach(profile => {
+            profileMap.set(profile.id, profile);
+          });
+        }
+        
+        // Format comments with user info
+        const formattedComments: Comment[] = commentsData.map((comment: SupabaseComment) => {
+          const profile = profileMap.get(comment.user_id);
+          return {
+            id: comment.id,
+            text: comment.content,
+            user: {
+              name: profile?.full_name || 'Unknown User',
+              profilePic: profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+            }
+          };
+        });
         
         setCommentsList(formattedComments);
+      } else {
+        setCommentsList([]);
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -159,20 +187,34 @@ const PostCard = ({ post }: PostCardProps) => {
           .select(`
             id,
             content,
-            user_id,
-            profiles(full_name, avatar_url)
+            user_id
           `);
         
         if (error) throw error;
         
         if (data && data[0]) {
+          // Get user profile for the new comment
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url')
+            .eq('id', user.id)
+            .single();
+            
+          let fullName = user.user_metadata?.full_name || 'User';
+          let avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix';
+          
+          if (!profileError && profileData) {
+            fullName = profileData.full_name || fullName;
+            avatarUrl = profileData.avatar_url || avatarUrl;
+          }
+          
           // Add the new comment to the list
-          const newComment = {
+          const newComment: Comment = {
             id: data[0].id,
             text: data[0].content,
             user: {
-              name: data[0].profiles?.[0]?.full_name || user.user_metadata?.full_name || 'User',
-              profilePic: data[0].profiles?.[0]?.avatar_url || user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+              name: fullName,
+              profilePic: avatarUrl
             }
           };
           
