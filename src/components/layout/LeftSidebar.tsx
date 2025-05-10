@@ -1,8 +1,9 @@
+
 import React, { useContext } from 'react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Video, BookOpen, MessageCircle, Settings, GraduationCap } from "lucide-react";
+import { Home, Video, BookOpen, MessageCircle, Settings } from "lucide-react";
 import { currentUser } from "@/data/mockData";
 import { AuthContext } from "@/App";
 
@@ -54,11 +55,6 @@ const LeftSidebar = () => {
         <SidebarItem icon={Settings} label="Settings" to="/settings" active={location.pathname === '/settings'} />
 
         <div className="border-t my-2"></div>
-
-        <h3 className="font-semibold text-gray-500 text-sm px-3 mt-4 mb-2">Education</h3>
-        
-        {/* Education shortcuts - only keeping relevant ones */}
-        <SidebarItem icon={GraduationCap} label="My Classes" to="#" />
         
         <div className="border-t my-4"></div>
         

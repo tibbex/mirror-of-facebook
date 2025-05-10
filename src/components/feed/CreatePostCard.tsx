@@ -8,18 +8,38 @@ import { currentUser } from "@/data/mockData";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
-const CreatePostCard = () => {
+interface CreatePostCardProps {
+  onPostCreated?: (content: string, image?: string) => void;
+}
+
+const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
   const [postContent, setPostContent] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
 
   const handleCreatePost = () => {
     if (postContent.trim()) {
+      // Call the callback function if provided
+      if (onPostCreated) {
+        onPostCreated(postContent, imageUrl);
+      }
+      
       toast.success("Your post was created successfully!");
       setPostContent("");
+      setImageUrl(undefined);
       setIsExpanded(false);
     } else {
       toast.error("Please enter some content for your post.");
     }
+  };
+
+  const handleImageUpload = () => {
+    // In a real app, this would open a file picker and upload the image
+    // For demo purposes, we'll just use a placeholder image URL
+    const demoImageUrl = "https://images.unsplash.com/photo-1513001900722-370f803f498d?q=80&w=1000&auto=format&fit=crop";
+    setImageUrl(demoImageUrl);
+    setIsExpanded(true);
+    toast.success("Demo image added to post!");
   };
 
   return (
@@ -33,7 +53,7 @@ const CreatePostCard = () => {
         {isExpanded ? (
           <Textarea
             placeholder={`What's on your mind, ${currentUser.name.split(' ')[0]}?`}
-            className="w-full rounded-full bg-gray-100 border-none focus-visible:ring-0"
+            className="w-full rounded-lg bg-gray-100 border-none focus-visible:ring-0"
             value={postContent}
             onChange={(e) => setPostContent(e.target.value)}
             autoFocus
@@ -48,6 +68,20 @@ const CreatePostCard = () => {
           </Button>
         )}
       </div>
+
+      {imageUrl && isExpanded && (
+        <div className="mb-3 relative">
+          <img src={imageUrl} alt="Post image" className="w-full h-48 object-cover rounded-lg" />
+          <Button 
+            variant="destructive" 
+            size="sm"
+            className="absolute top-2 right-2" 
+            onClick={() => setImageUrl(undefined)}
+          >
+            Remove
+          </Button>
+        </div>
+      )}
 
       {isExpanded && (
         <div className="mb-3">
@@ -67,7 +101,11 @@ const CreatePostCard = () => {
           <Video className="h-5 w-5 mr-2 text-red-500" />
           <span>Live Video</span>
         </Button>
-        <Button variant="ghost" className="flex-1 text-gray-500 hover:bg-gray-100">
+        <Button 
+          variant="ghost" 
+          className="flex-1 text-gray-500 hover:bg-gray-100"
+          onClick={handleImageUpload}
+        >
           <ImageIcon className="h-5 w-5 mr-2 text-green-500" />
           <span>Photo/Video</span>
         </Button>
