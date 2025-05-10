@@ -12,7 +12,6 @@ import { Separator } from "@/components/ui/separator";
 const SignIn = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
@@ -22,25 +21,13 @@ const SignIn = () => {
     setIsLoading(true);
     
     try {
-      // Validate phone number format (simple validation)
-      if (!phoneNumber || !/^\d{10,15}$/.test(phoneNumber.replace(/[^0-9]/g, ''))) {
-        toast.error("Please enter a valid phone number");
-        setIsLoading(false);
-        return;
-      }
-      
-      // Instead of directly logging in, redirect to OTP verification
-      navigate('/otp-verification', {
-        state: {
-          phoneNumber: phoneNumber.replace(/[^0-9]/g, ''),
-          email,
-          password,
-          isSignUp: false
-        }
-      });
+      await login(email, password);
+      toast.success("Successfully signed in!");
+      navigate('/');
     } catch (error: any) {
       console.error("Sign in error:", error);
       toast.error(error.message || "Failed to sign in");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -79,17 +66,6 @@ const SignIn = () => {
                 placeholder="Enter your password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="phoneNumber" className="text-sm font-medium">Phone Number</label>
-              <Input 
-                id="phoneNumber"
-                type="tel" 
-                placeholder="Enter your phone number" 
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
                 required
               />
             </div>

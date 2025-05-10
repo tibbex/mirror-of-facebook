@@ -39,12 +39,6 @@ const SignUp = () => {
       return;
     }
     
-    // Validate phone number format (simple validation)
-    if (!formData.phoneNumber || !/^\d{10,15}$/.test(formData.phoneNumber.replace(/[^0-9]/g, ''))) {
-      toast.error("Please enter a valid phone number");
-      return;
-    }
-    
     setIsLoading(true);
     
     try {
@@ -59,19 +53,14 @@ const SignUp = () => {
         grade: formData.grade
       };
       
-      // Redirect to OTP verification page with necessary data
-      navigate('/otp-verification', {
-        state: {
-          phoneNumber: formData.phoneNumber.replace(/[^0-9]/g, ''),
-          email: formData.email,
-          password: formData.password,
-          userData,
-          isSignUp: true
-        }
-      });
+      await signUp(formData.email, formData.password, userData);
+      
+      toast.success("Account created successfully! Please check your email for verification.");
+      navigate('/sign-in');
     } catch (error: any) {
       console.error("Sign up error:", error);
       toast.error(error.message || "Failed to create account");
+    } finally {
       setIsLoading(false);
     }
   };
