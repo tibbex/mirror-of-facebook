@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Header from '@/components/layout/Header';
 import LeftSidebar from '@/components/layout/LeftSidebar';
 import { Button } from '@/components/ui/button';
@@ -12,20 +12,246 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Moon, Sun, Upload, LogOut, User, Bell, Lock, Shield, HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { currentUser } from '@/data/mockData';
+import { AuthContext } from '@/App';
+import { supabase } from '@/integrations/supabase/client';
+
+interface UserProfile {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+  school_name?: string;
+  school_location?: string;
+  grade?: string;
+  date_of_birth?: string;
+}
+
+interface UserSettings {
+  id: string;
+  theme?: string;
+  notification_comments?: boolean;
+  notification_tags?: boolean;
+  notification_messages?: boolean;
+  notification_resources?: boolean;
+  profile_visibility?: string;
+  post_visibility?: string;
+}
 
 const Settings = () => {
   const [darkMode, setDarkMode] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: '',
+    username: '',
+    school: '',
+    grade: '',
+    bio: ''
+  });
+  
   const navigate = useNavigate();
+  const { user, logout } = useContext(AuthContext);
+  
+  // Load user profile and settings
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) throw profileError;
+        
+        setProfile(profileData);
+        setFormData({
+          fullName: profileData?.full_name || '',
+          username: profileData?.username || '',
+          school: profileData?.school_name || '',
+          grade: profileData?.grade || '',
+          bio: user?.user_metadata?.bio || ''
+        });
+        
+        // Fetch user settings
+        const { data: settingsData, error: settingsError } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (settingsError && settingsError.code !== 'PGRST116') { // No rows found
+          throw settingsError;
+        }
+        
+        if (settingsData) {
+          setSettings(settingsData);
+          setDarkMode(settingsData.theme === 'dark');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        toast.error("Failed to load settings");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, [user]);
 
-  const handleLogout = () => {
-    toast.success("Logged out successfully");
-    navigate('/sign-in');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+      navigate('/sign-in');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error("Failed to log out");
+    }
   };
 
-  const handleSaveChanges = () => {
-    toast.success("Settings saved successfully");
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }));
   };
+
+  const handleSaveChanges = async () => {
+    if (!user) return;
+    
+    try {
+      setIsSaving(true);
+      
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.fullName,
+          username: formData.username,
+          school_name: formData.school,
+          grade: formData.grade
+        })
+        .eq('id', user.id);
+      
+      if (profileError) throw profileError;
+      
+      // Update user metadata
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { 
+          bio: formData.bio,
+          full_name: formData.fullName,
+          username: formData.username
+        }
+      });
+      
+      if (metadataError) throw metadataError;
+      
+      toast.success("Settings saved successfully");
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error("Failed to save settings");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleThemeChange = async (isDark: boolean) => {
+    if (!user) return;
+    
+    try {
+      setDarkMode(isDark);
+      
+      // Update theme in settings
+      const { error } = await supabase
+        .from('user_settings')
+        .update({
+          theme: isDark ? 'dark' : 'light'
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating theme:', error);
+      toast.error("Failed to update theme");
+    }
+  };
+
+  const handleProfilePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user) return;
+    
+    const file = e.target.files[0];
+    
+    try {
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/profile.${fileExt}`;
+      
+      const { error: uploadError } = await supabase
+        .storage
+        .from('profile-pictures')
+        .upload(fileName, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+      
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrlData.publicUrl })
+        .eq('id', user.id);
+      
+      if (updateError) throw updateError;
+      
+      // Update user metadata
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrlData.publicUrl }
+      });
+      
+      if (metadataError) throw metadataError;
+      
+      // Update local state
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrlData.publicUrl } : null);
+      
+      toast.success("Profile picture updated");
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast.error("Failed to update profile picture");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <Header />
+        <div className="flex justify-center">
+          <LeftSidebar />
+          <main className="flex-1 max-w-4xl p-4">
+            <h1 className="text-2xl font-bold mb-6">Settings</h1>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-center text-gray-500">Loading settings...</p>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -53,15 +279,34 @@ const Settings = () => {
                 <CardContent className="space-y-4">
                   <div className="flex flex-col items-center mb-4 sm:flex-row sm:items-start">
                     <Avatar className="w-24 h-24 border-2 border-gray-200">
-                      <AvatarImage src={currentUser.profilePic} alt={currentUser.name} />
-                      <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                      <AvatarImage 
+                        src={profile?.avatar_url || user?.user_metadata?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
+                        alt={profile?.full_name || user?.user_metadata?.full_name || "User"} 
+                      />
+                      <AvatarFallback>{(profile?.full_name || user?.user_metadata?.full_name || "U")[0]}</AvatarFallback>
                     </Avatar>
                     <div className="mt-4 sm:mt-0 sm:ml-4">
-                      <h3 className="font-medium">{currentUser.name}</h3>
-                      <p className="text-sm text-gray-500">Student at Example High School</p>
-                      <Button variant="outline" size="sm" className="mt-2">
+                      <h3 className="font-medium">
+                        {profile?.full_name || user?.user_metadata?.full_name || "User"}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Student at {profile?.school_name || user?.user_metadata?.school_name || "School"}
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={() => document.getElementById('avatarInput')?.click()}
+                      >
                         <Upload className="h-4 w-4 mr-2" />
                         Change Photo
+                        <input 
+                          id="avatarInput"
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleProfilePhotoChange}
+                        />
                       </Button>
                     </div>
                   </div>
@@ -69,22 +314,38 @@ const Settings = () => {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="fullName">Full Name</Label>
-                      <Input id="fullName" defaultValue={currentUser.name} />
+                      <Input 
+                        id="fullName" 
+                        value={formData.fullName} 
+                        onChange={handleFormChange} 
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="username">Username</Label>
-                      <Input id="username" defaultValue="johndoe123" />
+                      <Input 
+                        id="username" 
+                        value={formData.username} 
+                        onChange={handleFormChange} 
+                      />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="school">School</Label>
-                      <Input id="school" defaultValue="Example High School" />
+                      <Input 
+                        id="school" 
+                        value={formData.school} 
+                        onChange={handleFormChange} 
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="grade">Grade</Label>
-                      <Input id="grade" defaultValue="11" />
+                      <Input 
+                        id="grade" 
+                        value={formData.grade} 
+                        onChange={handleFormChange} 
+                      />
                     </div>
                   </div>
                   
@@ -94,12 +355,17 @@ const Settings = () => {
                       id="bio" 
                       className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       placeholder="Tell us about yourself"
-                      defaultValue="High school student interested in science and technology."
+                      value={formData.bio}
+                      onChange={handleFormChange}
                     />
                   </div>
 
-                  <Button onClick={handleSaveChanges} className="bg-blue-600 hover:bg-blue-700">
-                    Save Changes
+                  <Button 
+                    onClick={handleSaveChanges} 
+                    className="bg-blue-600 hover:bg-blue-700" 
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 </CardContent>
               </Card>
@@ -124,7 +390,7 @@ const Settings = () => {
                       <Sun className="h-4 w-4" />
                       <Switch 
                         checked={darkMode} 
-                        onCheckedChange={setDarkMode} 
+                        onCheckedChange={handleThemeChange} 
                       />
                       <Moon className="h-4 w-4" />
                     </div>

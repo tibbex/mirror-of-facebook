@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useContext } from 'react';
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AuthContext } from '@/App';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Post {
   id: string;
@@ -30,40 +32,168 @@ interface PostCardProps {
 }
 
 const PostCard = ({ post }: PostCardProps) => {
+  const { user, isAuthenticated } = useContext(AuthContext);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
-  const [commentsList, setCommentsList] = useState<{text: string, user: {name: string, profilePic: string}}[]>([]);
+  const [commentsList, setCommentsList] = useState<{text: string, user: {name: string, profilePic: string}, id: string}[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const handleLike = () => {
-    if (liked) {
-      setLikeCount(likeCount - 1);
-    } else {
-      setLikeCount(likeCount + 1);
+  // Fetch comments when comments section is shown
+  const fetchComments = async () => {
+    if (!showComments || !post.id) return;
+    
+    try {
+      setIsLoadingComments(true);
+      
+      const { data, error } = await supabase
+        .from('comments')
+        .select(`
+          id,
+          content,
+          created_at,
+          profiles:user_id (
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('post_id', post.id)
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      
+      if (data) {
+        const formattedComments = data.map(comment => ({
+          id: comment.id,
+          text: comment.content,
+          user: {
+            name: comment.profiles?.full_name || 'Unknown User',
+            profilePic: comment.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+          }
+        }));
+        
+        setCommentsList(formattedComments);
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    } finally {
+      setIsLoadingComments(false);
     }
-    setLiked(!liked);
+  };
+  
+  // Toggle comments visibility and fetch comments when shown
+  const toggleComments = () => {
+    const newState = !showComments;
+    setShowComments(newState);
+    
+    if (newState) {
+      fetchComments();
+    }
   };
 
-  const handleComment = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleLike = async () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to like posts");
+      return;
+    }
+    
+    try {
+      if (liked) {
+        // Unlike post - in a real implementation you would have a likes table
+        // and remove the like entry. For now we'll just decrement the likes count.
+        const { error } = await supabase
+          .from('posts')
+          .update({ likes: likeCount - 1 })
+          .eq('id', post.id);
+        
+        if (error) throw error;
+        
+        setLikeCount(likeCount - 1);
+      } else {
+        // Like post
+        const { error } = await supabase
+          .from('posts')
+          .update({ likes: likeCount + 1 })
+          .eq('id', post.id);
+        
+        if (error) throw error;
+        
+        setLikeCount(likeCount + 1);
+      }
+      setLiked(!liked);
+    } catch (error) {
+      console.error('Error updating like:', error);
+      toast.error("Failed to update like");
+    }
+  };
+
+  const handleComment = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && commentText.trim()) {
-      // Add the new comment to the list
-      const newComment = {
-        text: commentText,
-        user: {
-          name: post.user.name,
-          profilePic: post.user.profilePic
-        }
-      };
+      if (!isAuthenticated || !user) {
+        toast.error("Please sign in to comment");
+        return;
+      }
       
-      setCommentsList([...commentsList, newComment]);
-      setCommentText("");
-      toast.success("Comment posted successfully!");
+      try {
+        // Add comment to Supabase
+        const { data, error } = await supabase
+          .from('comments')
+          .insert([
+            {
+              post_id: post.id,
+              user_id: user.id,
+              content: commentText
+            }
+          ])
+          .select(`
+            id,
+            content,
+            profiles:user_id (
+              full_name,
+              avatar_url
+            )
+          `);
+        
+        if (error) throw error;
+        
+        if (data && data[0]) {
+          // Add the new comment to the list
+          const newComment = {
+            id: data[0].id,
+            text: data[0].content,
+            user: {
+              name: data[0].profiles?.full_name || user.user_metadata?.full_name || 'User',
+              profilePic: data[0].profiles?.avatar_url || user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+            }
+          };
+          
+          setCommentsList([...commentsList, newComment]);
+          
+          // Update comment count on post
+          await supabase
+            .from('posts')
+            .update({ comments: post.comments + 1 })
+            .eq('id', post.id);
+          
+          setCommentText("");
+          toast.success("Comment posted successfully!");
+        }
+      } catch (error) {
+        console.error('Error posting comment:', error);
+        toast.error("Failed to post comment");
+      }
     }
   };
 
   const handleShare = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to share posts");
+      return;
+    }
+    
+    // In a real app, this would implement actual sharing functionality
     toast.success("Post shared successfully!");
   };
 
@@ -115,7 +245,7 @@ const PostCard = ({ post }: PostCardProps) => {
             <Button 
               variant="ghost" 
               className="text-gray-500 hover:bg-transparent hover:underline p-0"
-              onClick={() => setShowComments(!showComments)}
+              onClick={toggleComments}
             >
               {commentsList.length > 0 ? commentsList.length : post.comments} comments
             </Button>
@@ -150,7 +280,7 @@ const PostCard = ({ post }: PostCardProps) => {
           <Button 
             variant="ghost" 
             className="flex-1 text-sm text-gray-500"
-            onClick={() => setShowComments(!showComments)}
+            onClick={toggleComments}
           >
             <MessageCircle className="h-5 w-5 mr-2" />
             <span className="hidden sm:inline">Comment</span>
@@ -171,8 +301,11 @@ const PostCard = ({ post }: PostCardProps) => {
         <div className="px-4 py-2">
           <div className="flex items-center space-x-2 mb-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={post.user.profilePic} alt={post.user.name} />
-              <AvatarFallback>{post.user.name.charAt(0)}</AvatarFallback>
+              <AvatarImage 
+                src={user?.user_metadata?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
+                alt={user?.user_metadata?.full_name || "User"} 
+              />
+              <AvatarFallback>{(user?.user_metadata?.full_name || "U")[0]}</AvatarFallback>
             </Avatar>
             <Input 
               placeholder="Write a comment..." 
@@ -180,13 +313,18 @@ const PostCard = ({ post }: PostCardProps) => {
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               onKeyDown={handleComment}
+              disabled={!isAuthenticated}
             />
           </div>
           
-          {commentsList.length > 0 ? (
+          {isLoadingComments ? (
+            <div className="text-center py-2">
+              <p className="text-sm text-gray-500">Loading comments...</p>
+            </div>
+          ) : commentsList.length > 0 ? (
             <div className="space-y-2 mt-3">
-              {commentsList.map((comment, index) => (
-                <div key={index} className="flex items-start space-x-2">
+              {commentsList.map((comment) => (
+                <div key={comment.id} className="flex items-start space-x-2">
                   <Avatar className="h-7 w-7">
                     <AvatarImage src={comment.user.profilePic} alt={comment.user.name} />
                     <AvatarFallback>{comment.user.name.charAt(0)}</AvatarFallback>

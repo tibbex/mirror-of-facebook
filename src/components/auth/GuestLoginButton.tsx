@@ -1,48 +1,80 @@
 
-import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { AuthContext } from "../../App";
-import { useContext } from "react";
+import React, { useContext, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '@/App';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const GuestLoginButton = () => {
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
   const { login } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  const handleGuestLogin = () => {
-    setIsLoading(true);
-    setCountdown(5);
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev === null) return null;
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Set guest session
-          login();
-          localStorage.setItem("eduHubGuest", "true");
-          toast.success("Logged in as guest");
-          navigate('/');
-          return 0;
-        }
-        return prev - 1;
+  const handleGuestLogin = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Use anonymous login if available or a predefined guest account
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: 'guest@eduhub.com',
+        password: 'guestuser123'
       });
-    }, 1000);
+      
+      if (error) {
+        // If guest login fails (perhaps account doesn't exist yet), create it
+        if (error.message.includes('Invalid login credentials')) {
+          await createGuestAccount();
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success("Logged in as guest");
+        navigate('/');
+      }
+    } catch (error: any) {
+      console.error('Guest login error:', error);
+      toast.error(error.message || "Failed to login as guest");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createGuestAccount = async () => {
+    try {
+      // Create a guest account
+      const { data, error } = await supabase.auth.signUp({
+        email: 'guest@eduhub.com',
+        password: 'guestuser123',
+        options: {
+          data: {
+            full_name: 'Guest User',
+            username: 'guest'
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Try to log in with the new guest account
+      await login('guest@eduhub.com', 'guestuser123');
+      
+      toast.success("Logged in as guest");
+      navigate('/');
+    } catch (error) {
+      console.error('Error creating guest account:', error);
+      throw error;
+    }
   };
 
   return (
     <Button 
       variant="outline" 
-      onClick={handleGuestLogin} 
-      disabled={isLoading || countdown !== null}
-      className="w-full"
+      className="w-full" 
+      onClick={handleGuestLogin}
+      disabled={isLoading}
     >
-      {countdown !== null 
-        ? `Redirecting in ${countdown}...` 
-        : "Continue as Guest"}
+      {isLoading ? "Logging in as guest..." : "Continue as Guest"}
     </Button>
   );
 };

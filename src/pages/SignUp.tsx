@@ -10,34 +10,59 @@ import { AuthContext } from "../App";
 const SignUp = () => {
   const [formData, setFormData] = useState({
     fullName: '',
+    email: '',
     phoneNumber: '',
     username: '',
     schoolName: '',
     schoolLocation: '',
     dateOfBirth: '',
-    grade: ''
+    grade: '',
+    password: '',
+    confirmPassword: ''
   });
   
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
+  const { signUp } = useContext(AuthContext);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    
     setIsLoading(true);
     
-    // Simulate registration - in real app, this would connect to Supabase and Firebase for OTP
-    setTimeout(() => {
+    try {
+      // Create user metadata object
+      const userData = {
+        full_name: formData.fullName,
+        username: formData.username,
+        phone_number: formData.phoneNumber,
+        school_name: formData.schoolName,
+        school_location: formData.schoolLocation,
+        date_of_birth: formData.dateOfBirth,
+        grade: formData.grade
+      };
+      
+      await signUp(formData.email, formData.password, userData);
+      
+      toast.success("Account created successfully! Please check your email for verification.");
+      navigate('/sign-in');
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      toast.error(error.message || "Failed to create account");
+    } finally {
       setIsLoading(false);
-      login(); // Update auth state
-      toast.success("Account created successfully!");
-      navigate('/');
-    }, 1500);
+    }
   };
 
   return (
@@ -69,7 +94,20 @@ const SignUp = () => {
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="phoneNumber" className="text-sm font-medium">Phone Number (for OTP)</label>
+              <label htmlFor="email" className="text-sm font-medium">Email</label>
+              <Input 
+                id="email"
+                name="email"
+                type="email" 
+                placeholder="Enter your email address" 
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="phoneNumber" className="text-sm font-medium">Phone Number</label>
               <Input 
                 id="phoneNumber"
                 name="phoneNumber"
@@ -140,6 +178,32 @@ const SignUp = () => {
                 type="text" 
                 placeholder="Enter your grade" 
                 value={formData.grade}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium">Password</label>
+              <Input 
+                id="password"
+                name="password"
+                type="password" 
+                placeholder="Create a password" 
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</label>
+              <Input 
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password" 
+                placeholder="Confirm your password" 
+                value={formData.confirmPassword}
                 onChange={handleChange}
                 required
               />

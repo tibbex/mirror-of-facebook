@@ -1,12 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { ImageIcon, SmileIcon, Video } from "lucide-react";
-import { currentUser } from "@/data/mockData";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { AuthContext } from "@/App";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CreatePostCardProps {
   onPostCreated?: (content: string, image?: string) => void;
@@ -16,8 +17,15 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
   const [postContent, setPostContent] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
+  const [isUploading, setIsUploading] = useState(false);
+  const { user, isAuthenticated } = useContext(AuthContext);
 
   const handleCreatePost = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to create posts");
+      return;
+    }
+
     if (postContent.trim()) {
       // Call the callback function if provided
       if (onPostCreated) {
@@ -33,26 +41,53 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
     }
   };
 
-  const handleImageUpload = () => {
-    // In a real app, this would open a file picker and upload the image
-    // For demo purposes, we'll just use a placeholder image URL
-    const demoImageUrl = "https://images.unsplash.com/photo-1513001900722-370f803f498d?q=80&w=1000&auto=format&fit=crop";
-    setImageUrl(demoImageUrl);
-    setIsExpanded(true);
-    toast.success("Demo image added to post!");
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    
+    const file = e.target.files[0];
+    
+    // Basic validation
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+    
+    setIsUploading(true);
+    
+    try {
+      // Convert to base64 for preview
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        setImageUrl(reader.result as string);
+        setIsExpanded(true);
+        setIsUploading(false);
+      };
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
+      setIsUploading(false);
+    }
+  };
+
+  const handleImageClick = () => {
+    document.getElementById('fileInput')?.click();
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-3 mb-4">
       <div className="flex items-center space-x-2 mb-3">
         <Avatar>
-          <AvatarImage src={currentUser.profilePic} alt={currentUser.name} />
-          <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+          <AvatarImage 
+            src={user?.user_metadata?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
+            alt={user?.user_metadata?.full_name || "User"} 
+          />
+          <AvatarFallback>{(user?.user_metadata?.full_name || "U")[0]}</AvatarFallback>
         </Avatar>
         
         {isExpanded ? (
           <Textarea
-            placeholder={`What's on your mind, ${currentUser.name.split(' ')[0]}?`}
+            placeholder={`What's on your mind, ${user?.user_metadata?.full_name?.split(' ')[0] || "User"}?`}
             className="w-full rounded-lg bg-gray-100 border-none focus-visible:ring-0"
             value={postContent}
             onChange={(e) => setPostContent(e.target.value)}
@@ -63,8 +98,9 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
             variant="outline" 
             className="w-full rounded-full bg-gray-100 text-left justify-start pl-4 text-gray-500 hover:bg-gray-200 border-none"
             onClick={() => setIsExpanded(true)}
+            disabled={!isAuthenticated}
           >
-            {`What's on your mind, ${currentUser.name.split(' ')[0]}?`}
+            {`What's on your mind, ${user?.user_metadata?.full_name?.split(' ')[0] || "User"}?`}
           </Button>
         )}
       </div>
@@ -88,8 +124,9 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
           <Button 
             className="w-full bg-facebook-primary hover:bg-facebook-hover text-white"
             onClick={handleCreatePost}
+            disabled={isUploading || !isAuthenticated}
           >
-            Post
+            {isUploading ? "Uploading..." : "Post"}
           </Button>
         </div>
       )}
@@ -97,19 +134,27 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
       <Separator className="my-3" />
 
       <div className="flex justify-between">
-        <Button variant="ghost" className="flex-1 text-gray-500 hover:bg-gray-100">
+        <Button variant="ghost" className="flex-1 text-gray-500 hover:bg-gray-100" disabled={!isAuthenticated}>
           <Video className="h-5 w-5 mr-2 text-red-500" />
           <span>Live Video</span>
         </Button>
         <Button 
           variant="ghost" 
           className="flex-1 text-gray-500 hover:bg-gray-100"
-          onClick={handleImageUpload}
+          onClick={handleImageClick}
+          disabled={!isAuthenticated}
         >
           <ImageIcon className="h-5 w-5 mr-2 text-green-500" />
           <span>Photo/Video</span>
+          <input 
+            id="fileInput" 
+            type="file" 
+            className="hidden" 
+            accept="image/*" 
+            onChange={handleImageUpload}
+          />
         </Button>
-        <Button variant="ghost" className="flex-1 text-gray-500 hover:bg-gray-100">
+        <Button variant="ghost" className="flex-1 text-gray-500 hover:bg-gray-100" disabled={!isAuthenticated}>
           <SmileIcon className="h-5 w-5 mr-2 text-yellow-500" />
           <span>Feeling/Activity</span>
         </Button>

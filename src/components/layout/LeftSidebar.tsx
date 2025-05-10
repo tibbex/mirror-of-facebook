@@ -1,17 +1,24 @@
 
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "react-router-dom";
 import { Home, Video, BookOpen, MessageCircle, Settings } from "lucide-react";
-import { currentUser } from "@/data/mockData";
 import { AuthContext } from "@/App";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SidebarItemProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   to: string;
   active?: boolean;
+}
+
+interface UserProfile {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
 }
 
 const SidebarItem = ({ icon: Icon, label, to, active = false }: SidebarItemProps) => (
@@ -28,11 +35,44 @@ const SidebarItem = ({ icon: Icon, label, to, active = false }: SidebarItemProps
 
 const LeftSidebar = () => {
   const location = useLocation();
-  const { logout } = useContext(AuthContext);
+  const { logout, user } = useContext(AuthContext);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        // Fetch user profile from Supabase
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) throw error;
+        
+        setProfile(data);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user]);
 
   const handleLogout = () => {
     logout();
   };
+
+  const userName = profile?.full_name || user?.user_metadata?.full_name || "User";
+  const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix";
 
   return (
     <aside className="hidden md:block w-[300px] p-2 overflow-y-auto h-[calc(100vh-60px)] sticky top-[60px]">
@@ -40,10 +80,10 @@ const LeftSidebar = () => {
         <Link to="/settings">
           <Button variant="ghost" className="w-full justify-start mb-2 px-3">
             <Avatar className="h-8 w-8 mr-3">
-              <AvatarImage src={currentUser.profilePic} alt={currentUser.name} />
-              <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+              <AvatarImage src={userAvatar} alt={userName} />
+              <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span>{currentUser.name}</span>
+            <span>{userName}</span>
           </Button>
         </Link>
 

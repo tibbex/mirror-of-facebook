@@ -10,23 +10,26 @@ import GuestLoginButton from "../components/auth/GuestLoginButton";
 import { Separator } from "@/components/ui/separator";
 
 const SignIn = () => {
-  const [username, setUsername] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate authentication - in real app, this would connect to Supabase
-    setTimeout(() => {
-      setIsLoading(false);
-      login(); // Update auth state
+    try {
+      await login(email, password);
       toast.success("Successfully signed in!");
       navigate('/');
-    }, 1500);
+    } catch (error: any) {
+      console.error("Sign in error:", error);
+      toast.error(error.message || "Failed to sign in");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -40,29 +43,29 @@ const SignIn = () => {
             </svg>
           </div>
           <CardTitle className="text-2xl font-bold">Sign in to EduHub</CardTitle>
-          <CardDescription>Enter your username and phone number to sign in</CardDescription>
+          <CardDescription>Enter your email and password to sign in</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium">Username</label>
+              <label htmlFor="email" className="text-sm font-medium">Email</label>
               <Input 
-                id="username"
-                type="text" 
-                placeholder="Enter your username" 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email" 
+                placeholder="Enter your email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="phone" className="text-sm font-medium">Phone Number</label>
+              <label htmlFor="password" className="text-sm font-medium">Password</label>
               <Input 
-                id="phone"
-                type="tel" 
-                placeholder="Enter your phone number" 
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                id="password"
+                type="password" 
+                placeholder="Enter your password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>

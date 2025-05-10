@@ -13,18 +13,26 @@ import Videos from "./pages/Videos";
 import Resources from "./pages/Resources";
 import Messaging from "./pages/Messaging";
 import Settings from "./pages/Settings";
+import { supabase } from "./integrations/supabase/client";
+import { User, Session } from '@supabase/supabase-js';
 
 // Create auth context to manage authentication state
 export const AuthContext = createContext<{
   isAuthenticated: boolean;
   isGuest: boolean;
-  login: () => void;
-  logout: () => void;
+  user: User | null;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, userData: object) => Promise<void>;
+  logout: () => Promise<void>;
 }>({
   isAuthenticated: false,
   isGuest: false,
-  login: () => {},
-  logout: () => {},
+  user: null,
+  session: null,
+  login: async () => {},
+  signUp: async () => {},
+  logout: async () => {},
 });
 
 const queryClient = new QueryClient();
@@ -32,36 +40,113 @@ const queryClient = new QueryClient();
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Check if user is logged in on initial load
+  // Initialize auth state
   useEffect(() => {
-    const userLoggedIn = localStorage.getItem("eduHubUser");
-    const guestLoggedIn = localStorage.getItem("eduHubGuest");
-    
-    if (userLoggedIn) {
-      setIsAuthenticated(true);
-      setIsGuest(false);
-    } else if (guestLoggedIn) {
-      setIsAuthenticated(true);
-      setIsGuest(true);
-    }
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        setIsAuthenticated(!!currentSession);
+        setIsGuest(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setIsAuthenticated(!!currentSession);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = () => {
-    setIsAuthenticated(true);
-    // In a real app, this would include actual token storage
-    localStorage.setItem("eduHubUser", "true");
+  // Login function
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      // Auth state will be updated by onAuthStateChange
+    } catch (error) {
+      console.error('Error logging in:', error);
+      throw error;
+    }
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    setIsGuest(false);
-    localStorage.removeItem("eduHubUser");
-    localStorage.removeItem("eduHubGuest");
+  // Sign up function
+  const signUp = async (email: string, password: string, userData: object) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: userData
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Auth state will be updated by onAuthStateChange
+    } catch (error) {
+      console.error('Error signing up:', error);
+      throw error;
+    }
   };
+
+  // Logout function
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Auth state will be updated by onAuthStateChange
+      setIsGuest(false);
+      localStorage.removeItem("eduHubUser");
+      localStorage.removeItem("eduHubGuest");
+    } catch (error) {
+      console.error('Error logging out:', error);
+      throw error;
+    }
+  };
+
+  // Guest login function
+  const loginAsGuest = () => {
+    setIsAuthenticated(true);
+    setIsGuest(true);
+    localStorage.setItem("eduHubGuest", "true");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isGuest, login, logout }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      isGuest, 
+      user, 
+      session,
+      login, 
+      signUp,
+      logout 
+    }}>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
