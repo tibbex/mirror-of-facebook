@@ -27,6 +27,17 @@ interface Post {
   timestamp: string;
 }
 
+interface CommentData {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  profiles: {
+    full_name: string | null;
+    avatar_url: string | null;
+  }[] | null;
+}
+
 interface PostCardProps {
   post: Post;
 }
@@ -63,7 +74,7 @@ const PostCard = ({ post }: PostCardProps) => {
       if (error) throw error;
       
       if (data) {
-        const formattedComments = data.map(comment => ({
+        const formattedComments = data.map((comment: CommentData) => ({
           id: comment.id,
           text: comment.content,
           user: {

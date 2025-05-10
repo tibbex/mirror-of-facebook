@@ -24,6 +24,23 @@ interface Post {
   timestamp: string;
 }
 
+// Define the shape of the data returned from Supabase
+interface PostData {
+  id: string;
+  content: string;
+  image_url: string | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  created_at: string;
+  user_id: string;
+  profiles: {
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+  }[] | null;
+}
+
 const NewsFeed = () => {
   const { isAuthenticated, isGuest, user } = useContext(AuthContext);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -63,7 +80,7 @@ const NewsFeed = () => {
         
         if (data) {
           // Transform data to match our Post interface
-          const transformedPosts: Post[] = data.map(post => ({
+          const transformedPosts: Post[] = data.map((post: PostData) => ({
             id: post.id,
             user: {
               id: post.user_id,

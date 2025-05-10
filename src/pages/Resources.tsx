@@ -23,6 +23,20 @@ interface Resource {
   }
 }
 
+interface ResourceData {
+  id: string;
+  title: string;
+  description: string | null;
+  file_url: string | null;
+  category: string | null;
+  created_at: string;
+  user_id: string;
+  profiles: {
+    id: string;
+    full_name: string | null;
+  }[] | null;
+}
+
 const Resources = () => {
   const { isAuthenticated, user } = useContext(AuthContext);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -51,12 +65,12 @@ const Resources = () => {
         if (error) throw error;
         
         if (data) {
-          const formattedResources = data.map(resource => ({
+          const formattedResources = data.map((resource: ResourceData) => ({
             id: resource.id,
             title: resource.title,
-            description: resource.description,
-            file_url: resource.file_url,
-            category: resource.category,
+            description: resource.description || undefined,
+            file_url: resource.file_url || undefined,
+            category: resource.category || undefined,
             created_at: new Date(resource.created_at).toLocaleString(),
             user: {
               id: resource.user_id,

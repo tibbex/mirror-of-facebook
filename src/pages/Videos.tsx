@@ -23,6 +23,20 @@ interface Video {
   }
 }
 
+interface VideoData {
+  id: string;
+  title: string;
+  description: string | null;
+  video_url: string;
+  thumbnail_url: string | null;
+  created_at: string;
+  user_id: string;
+  profiles: {
+    id: string;
+    full_name: string | null;
+  }[] | null;
+}
+
 const Videos = () => {
   const { isAuthenticated, user } = useContext(AuthContext);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -51,12 +65,12 @@ const Videos = () => {
         if (error) throw error;
         
         if (data) {
-          const formattedVideos = data.map(video => ({
+          const formattedVideos = data.map((video: VideoData) => ({
             id: video.id,
             title: video.title,
-            description: video.description,
+            description: video.description || undefined,
             video_url: video.video_url,
-            thumbnail_url: video.thumbnail_url,
+            thumbnail_url: video.thumbnail_url || undefined,
             created_at: new Date(video.created_at).toLocaleString(),
             user: {
               id: video.user_id,
