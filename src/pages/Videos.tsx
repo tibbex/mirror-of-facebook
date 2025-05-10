@@ -44,10 +44,7 @@ const Videos = () => {
             thumbnail_url, 
             created_at,
             user_id,
-            profiles:user_id (
-              id, 
-              full_name
-            )
+            profiles(id, full_name)
           `)
           .order('created_at', { ascending: false });
           
@@ -62,8 +59,8 @@ const Videos = () => {
             thumbnail_url: video.thumbnail_url,
             created_at: new Date(video.created_at).toLocaleString(),
             user: {
-              id: video.profiles?.id || '',
-              name: video.profiles?.full_name || 'Unknown User'
+              id: video.user_id,
+              name: video.profiles?.[0]?.full_name || 'Unknown User'
             }
           }));
           

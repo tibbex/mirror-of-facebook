@@ -54,10 +54,8 @@ const PostCard = ({ post }: PostCardProps) => {
           id,
           content,
           created_at,
-          profiles:user_id (
-            full_name,
-            avatar_url
-          )
+          user_id,
+          profiles(full_name, avatar_url)
         `)
         .eq('post_id', post.id)
         .order('created_at', { ascending: true });
@@ -69,8 +67,8 @@ const PostCard = ({ post }: PostCardProps) => {
           id: comment.id,
           text: comment.content,
           user: {
-            name: comment.profiles?.full_name || 'Unknown User',
-            profilePic: comment.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+            name: comment.profiles?.[0]?.full_name || 'Unknown User',
+            profilePic: comment.profiles?.[0]?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
           }
         }));
         
@@ -150,10 +148,8 @@ const PostCard = ({ post }: PostCardProps) => {
           .select(`
             id,
             content,
-            profiles:user_id (
-              full_name,
-              avatar_url
-            )
+            user_id,
+            profiles(full_name, avatar_url)
           `);
         
         if (error) throw error;
@@ -164,8 +160,8 @@ const PostCard = ({ post }: PostCardProps) => {
             id: data[0].id,
             text: data[0].content,
             user: {
-              name: data[0].profiles?.full_name || user.user_metadata?.full_name || 'User',
-              profilePic: data[0].profiles?.avatar_url || user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+              name: data[0].profiles?.[0]?.full_name || user.user_metadata?.full_name || 'User',
+              profilePic: data[0].profiles?.[0]?.avatar_url || user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
             }
           };
           

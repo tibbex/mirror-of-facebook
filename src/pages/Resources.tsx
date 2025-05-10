@@ -44,10 +44,7 @@ const Resources = () => {
             category,
             created_at,
             user_id,
-            profiles:user_id (
-              id, 
-              full_name
-            )
+            profiles(id, full_name)
           `)
           .order('created_at', { ascending: false });
           
@@ -62,8 +59,8 @@ const Resources = () => {
             category: resource.category,
             created_at: new Date(resource.created_at).toLocaleString(),
             user: {
-              id: resource.profiles?.id || '',
-              name: resource.profiles?.full_name || 'Unknown User'
+              id: resource.user_id,
+              name: resource.profiles?.[0]?.full_name || 'Unknown User'
             }
           }));
           

@@ -41,7 +41,7 @@ const NewsFeed = () => {
       try {
         setIsLoading(true);
         
-        // Get posts from Supabase
+        // Get posts from Supabase with proper join
         const { data, error } = await supabase
           .from('posts')
           .select(`
@@ -53,11 +53,7 @@ const NewsFeed = () => {
             shares, 
             created_at,
             user_id,
-            profiles:user_id (
-              id, 
-              full_name, 
-              avatar_url
-            )
+            profiles(id, full_name, avatar_url)
           `)
           .order('created_at', { ascending: false });
         
@@ -70,9 +66,9 @@ const NewsFeed = () => {
           const transformedPosts: Post[] = data.map(post => ({
             id: post.id,
             user: {
-              id: post.profiles?.id || '',
-              name: post.profiles?.full_name || 'Unknown User',
-              profilePic: post.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+              id: post.user_id,
+              name: post.profiles?.[0]?.full_name || 'Unknown User',
+              profilePic: post.profiles?.[0]?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
             },
             content: post.content,
             image: post.image_url || undefined,
