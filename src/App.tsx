@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import OtpVerification from "./pages/OtpVerification";
 import Videos from "./pages/Videos";
 import Resources from "./pages/Resources";
 import Messaging from "./pages/Messaging";
@@ -164,6 +165,10 @@ const App = () => {
               <Route 
                 path="/sign-up" 
                 element={!isAuthenticated ? <SignUp /> : <Navigate to="/" />} 
+              />
+              <Route 
+                path="/otp-verification" 
+                element={<OtpVerification />} 
               />
               <Route 
                 path="/videos" 
