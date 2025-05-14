@@ -60,12 +60,7 @@ const SignIn = () => {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between">
-                <label htmlFor="password" className="text-sm font-medium text-gray-700">Password</label>
-                <Link to="#" className="text-xs text-blue-600 hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
+              <label htmlFor="password" className="text-sm font-medium text-gray-700">Password</label>
               <Input 
                 id="password"
                 type="password" 
