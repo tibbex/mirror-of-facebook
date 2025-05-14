@@ -52,13 +52,7 @@ const App = () => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         setIsAuthenticated(!!currentSession);
-        
-        // Check if this is a guest user
-        if (currentSession?.user?.email === 'guest@eduhub.com') {
-          setIsGuest(true);
-        } else {
-          setIsGuest(false);
-        }
+        setIsGuest(false); // We're removing guest login functionality
       }
     );
 
@@ -67,12 +61,7 @@ const App = () => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setIsAuthenticated(!!currentSession);
-      
-      // Check if this is a guest user
-      if (currentSession?.user?.email === 'guest@eduhub.com') {
-        setIsGuest(true);
-      }
-      
+      setIsGuest(false); // We're removing guest login functionality
       setLoading(false);
     });
 
@@ -134,6 +123,7 @@ const App = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
+          <div className="w-16 h-16 border-4 border-t-blue-600 border-r-transparent border-b-purple-600 border-l-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-500">Loading...</p>
         </div>
       </div>
