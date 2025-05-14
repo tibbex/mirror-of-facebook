@@ -28,13 +28,17 @@ const Header = () => {
         {/* Left section: Logo and search */}
         <div className="flex items-center space-x-2 md:space-x-4">
           <div className="flex items-center">
-            {/* EduHub logo */}
+            {/* Updated colorful open book logo */}
             <Link to="/" className="flex items-center">
-              <svg className="w-10 h-10 text-blue-600" viewBox="0 0 36 36">
-                <path fill="currentColor" d="M18 0C8.059 0 0 8.059 0 18s8.059 18 18 18 18-8.059 18-18S27.941 0 18 0z"></path>
-                <path fill="white" d="M26 12H10c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V14c0-1.1-.9-2-2-2zm-7 3h5v2h-5v-2zm0 4h5v2h-5v-2zm-6-4h4v8h-4v-8z"></path>
-              </svg>
-              <span className="ml-2 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">EduHub</span>
+              <div className="w-10 h-10 relative">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-md transform rotate-6"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <BookOpen className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </div>
+              <span className="ml-2 text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-500 to-pink-500 bg-clip-text text-transparent">EduHub</span>
             </Link>
           </div>
           <div className="relative hidden md:flex items-center">
@@ -72,9 +76,10 @@ const Header = () => {
           </div>
         </nav>
         
-        {/* Mobile menu icon */}
+        {/* Mobile menu icon - improved visibility */}
         <div className="md:hidden">
-          <Button variant="ghost" size="icon" onClick={() => setShowMobileMenu(!showMobileMenu)}>
+          <Button variant="ghost" size="icon" onClick={() => setShowMobileMenu(!showMobileMenu)} 
+            className="bg-gray-100 rounded-full hover:bg-gray-200">
             {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </Button>
         </div>
@@ -111,9 +116,9 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - improved styling */}
       {showMobileMenu && (
-        <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in">
+        <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in shadow-lg rounded-b-lg mx-2">
           <div className="px-4 py-3 space-y-2">
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />

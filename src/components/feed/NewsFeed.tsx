@@ -7,6 +7,7 @@ import PostCard from './PostCard';
 import { useContext } from 'react';
 import { AuthContext } from '@/App';
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from 'sonner';
 
 // Updated post data structure with Supabase data
 interface Post {
@@ -41,93 +42,95 @@ const NewsFeed = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch posts from Supabase when component mounts
-  useEffect(() => {
-    const fetchPosts = async () => {
-      if (!isAuthenticated) {
-        setPosts([]);
-        setIsLoading(false);
-        return;
+  const fetchPosts = async () => {
+    if (!isAuthenticated) {
+      setPosts([]);
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      // Get posts from Supabase
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          id, 
+          content, 
+          image_url, 
+          likes, 
+          comments, 
+          shares, 
+          created_at,
+          user_id
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (postsError) {
+        throw postsError;
       }
       
-      try {
-        setIsLoading(true);
-        
-        // Get posts from Supabase
-        const { data: postsData, error: postsError } = await supabase
-          .from('posts')
-          .select(`
-            id, 
-            content, 
-            image_url, 
-            likes, 
-            comments, 
-            shares, 
-            created_at,
-            user_id
-          `)
-          .order('created_at', { ascending: false });
-        
-        if (postsError) {
-          throw postsError;
+      if (postsData) {
+        // Get profiles for users
+        const userIds = [...new Set(postsData.map(post => post.user_id))];
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', userIds);
+          
+        if (profilesError) {
+          throw profilesError;
         }
         
-        if (postsData) {
-          // Get profiles for users
-          const userIds = [...new Set(postsData.map(post => post.user_id))];
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url')
-            .in('id', userIds);
-            
-          if (profilesError) {
-            throw profilesError;
-          }
-          
-          // Create a map of user profiles for quick lookup
-          const profileMap = new Map();
-          if (profilesData) {
-            profilesData.forEach(profile => {
-              profileMap.set(profile.id, profile);
-            });
-          }
-          
-          // Transform data to match our Post interface
-          const transformedPosts: Post[] = postsData.map((post: SupabasePost) => {
-            const profile = profileMap.get(post.user_id);
-            return {
-              id: post.id,
-              user: {
-                id: post.user_id,
-                name: profile?.full_name || 'Unknown User',
-                profilePic: profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-              },
-              content: post.content,
-              image: post.image_url || undefined,
-              likes: post.likes || 0,
-              comments: post.comments || 0,
-              shares: post.shares || 0,
-              timestamp: new Date(post.created_at).toLocaleString()
-            };
+        // Create a map of user profiles for quick lookup
+        const profileMap = new Map();
+        if (profilesData) {
+          profilesData.forEach(profile => {
+            profileMap.set(profile.id, profile);
           });
-          
-          setPosts(transformedPosts);
         }
-      } catch (error) {
-        console.error('Error fetching posts:', error);
-      } finally {
-        setIsLoading(false);
+        
+        // Transform data to match our Post interface
+        const transformedPosts: Post[] = postsData.map((post: SupabasePost) => {
+          const profile = profileMap.get(post.user_id);
+          return {
+            id: post.id,
+            user: {
+              id: post.user_id,
+              name: profile?.full_name || 'Unknown User',
+              profilePic: profile?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+            },
+            content: post.content,
+            image: post.image_url || undefined,
+            likes: post.likes || 0,
+            comments: post.comments || 0,
+            shares: post.shares || 0,
+            timestamp: new Date(post.created_at).toLocaleString()
+          };
+        });
+        
+        setPosts(transformedPosts);
       }
-    };
-
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      toast.error("Failed to load posts. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     fetchPosts();
     
     // Set up real-time subscription for new posts
     const postsSubscription = supabase
       .channel('public:posts')
       .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'posts' }, 
+        { event: '*', schema: 'public', table: 'posts' }, 
         (payload) => {
-          fetchPosts(); // Refetch all posts when a new one is added
+          console.log('Post change detected:', payload);
+          fetchPosts(); // Refetch all posts when any changes are detected
         }
       )
       .subscribe();
@@ -139,7 +142,10 @@ const NewsFeed = () => {
 
   // Function to add a new post (will be passed to CreatePostCard)
   const addPost = async (content: string, image?: string) => {
-    if (!isAuthenticated || isGuest) return;
+    if (!isAuthenticated) {
+      toast.error("Please sign in to create posts");
+      return;
+    }
     
     try {
       let imageUrl = image;
@@ -188,8 +194,29 @@ const NewsFeed = () => {
       
       if (error) throw error;
       
+      // Add the new post to the posts state immediately for better UX
+      if (data && data[0]) {
+        const newPost: Post = {
+          id: data[0].id,
+          user: {
+            id: user?.id || '',
+            name: user?.user_metadata?.full_name || 'Unknown User',
+            profilePic: user?.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+          },
+          content: data[0].content,
+          image: data[0].image_url || undefined,
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          timestamp: new Date().toLocaleString()
+        };
+        
+        setPosts([newPost, ...posts]);
+        toast.success("Post created successfully!");
+      }
     } catch (error) {
       console.error('Error creating post:', error);
+      toast.error("Failed to create post. Please try again.");
     }
   };
 
@@ -200,7 +227,10 @@ const NewsFeed = () => {
       {isLoading ? (
         <Card className="mb-4 p-6 text-center">
           <CardContent className="pt-4">
-            <p className="text-gray-500">Loading posts...</p>
+            <div className="flex justify-center">
+              <div className="w-8 h-8 border-4 border-t-blue-600 border-r-transparent border-b-purple-600 border-l-transparent rounded-full animate-spin"></div>
+            </div>
+            <p className="text-gray-500 mt-2">Loading posts...</p>
           </CardContent>
         </Card>
       ) : posts.length > 0 ? (
@@ -209,7 +239,7 @@ const NewsFeed = () => {
         <Card className="mb-4 p-6 text-center">
           <CardContent className="pt-4">
             <p className="text-gray-500">Welcome to EduHub!</p>
-            <p className="text-gray-500 text-sm mt-1">Create your first post or sign in to see more content.</p>
+            <p className="text-gray-500 text-sm mt-1">Create your first post to see your content here.</p>
           </CardContent>
         </Card>
       )}
