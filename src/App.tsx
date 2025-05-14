@@ -52,7 +52,13 @@ const App = () => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         setIsAuthenticated(!!currentSession);
-        setIsGuest(false);
+        
+        // Check if this is a guest user
+        if (currentSession?.user?.email === 'guest@eduhub.com') {
+          setIsGuest(true);
+        } else {
+          setIsGuest(false);
+        }
       }
     );
 
@@ -61,6 +67,12 @@ const App = () => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setIsAuthenticated(!!currentSession);
+      
+      // Check if this is a guest user
+      if (currentSession?.user?.email === 'guest@eduhub.com') {
+        setIsGuest(true);
+      }
+      
       setLoading(false);
     });
 
@@ -112,19 +124,10 @@ const App = () => {
       
       // Auth state will be updated by onAuthStateChange
       setIsGuest(false);
-      localStorage.removeItem("eduHubUser");
-      localStorage.removeItem("eduHubGuest");
     } catch (error) {
       console.error('Error logging out:', error);
       throw error;
     }
-  };
-
-  // Guest login function
-  const loginAsGuest = () => {
-    setIsAuthenticated(true);
-    setIsGuest(true);
-    localStorage.setItem("eduHubGuest", "true");
   };
 
   if (loading) {

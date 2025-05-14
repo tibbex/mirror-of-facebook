@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const GuestLoginButton = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useContext(AuthContext);
+  const { user, session, isAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleGuestLogin = async () => {
@@ -56,12 +56,17 @@ const GuestLoginButton = () => {
       
       if (error) throw error;
       
-      // Try to log in with the new guest account
-      await login('guest@eduhub.com', 'guestuser123');
+      // After account creation, sign in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: 'guest@eduhub.com',
+        password: 'guestuser123'
+      });
+      
+      if (signInError) throw signInError;
       
       toast.success("Logged in as guest");
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating guest account:', error);
       throw error;
     }
