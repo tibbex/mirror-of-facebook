@@ -19,23 +19,95 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
   const { user, isAuthenticated } = useContext(AuthContext);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!isAuthenticated) {
       toast.error("Please sign in to create posts");
       return;
     }
 
     if (postContent.trim()) {
-      // Call the callback function if provided
-      if (onPostCreated) {
-        onPostCreated(postContent, imageUrl);
+      try {
+        // If there's an image, handle the upload
+        let finalImageUrl = imageUrl;
+        
+        // If the image is a base64 string, upload to Supabase
+        if (imageUrl && imageUrl.startsWith('data:')) {
+          setIsUploading(true);
+          
+          try {
+            const timestamp = Date.now();
+            const fileExt = imageUrl.split(';')[0].split('/')[1];
+            const fileName = `${user?.id}/${timestamp}.${fileExt}`;
+            
+            // Convert base64 to blob
+            const base64Data = imageUrl.split(',')[1];
+            const blob = await fetch(`data:image/jpeg;base64,${base64Data}`).then(res => res.blob());
+            
+            // Create the bucket if it doesn't exist (first time)
+            const { error: bucketError } = await supabase
+              .storage
+              .createBucket('post-images', {
+                public: true,
+                fileSizeLimit: 5242880 // 5MB
+              })
+              .catch(() => ({ error: null })); // Ignore error if bucket already exists
+            
+            // Upload to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabase
+              .storage
+              .from('post-images')
+              .upload(fileName, blob);
+            
+            if (uploadError) throw uploadError;
+            
+            // Get public URL
+            const { data: publicUrlData } = supabase
+              .storage
+              .from('post-images')
+              .getPublicUrl(fileName);
+            
+            finalImageUrl = publicUrlData.publicUrl;
+          } catch (error) {
+            console.error('Error uploading image:', error);
+            toast.error("Failed to upload image");
+            setIsUploading(false);
+            return;
+          }
+        }
+        
+        // Insert new post into Supabase
+        const { data, error } = await supabase
+          .from('posts')
+          .insert([
+            {
+              user_id: user?.id,
+              content: postContent,
+              image_url: finalImageUrl,
+              likes: 0,
+              comments: 0,
+              shares: 0
+            }
+          ]);
+        
+        if (error) throw error;
+        
+        // Call the callback function if provided
+        if (onPostCreated) {
+          onPostCreated(postContent, finalImageUrl);
+        }
+        
+        toast.success("Your post was created successfully!");
+        setPostContent("");
+        setImageUrl(undefined);
+        setIsExpanded(false);
+        setIsUploading(false);
+      } catch (error) {
+        console.error('Error creating post:', error);
+        toast.error("Failed to create post");
+        setIsUploading(false);
       }
-      
-      toast.success("Your post was created successfully!");
-      setPostContent("");
-      setImageUrl(undefined);
-      setIsExpanded(false);
     } else {
       toast.error("Please enter some content for your post.");
     }
@@ -71,7 +143,10 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
   };
 
   const handleImageClick = () => {
-    document.getElementById('fileInput')?.click();
+    // Directly trigger the file input click
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   return (
@@ -147,6 +222,7 @@ const CreatePostCard = ({ onPostCreated }: CreatePostCardProps) => {
           <ImageIcon className="h-5 w-5 mr-2 text-green-500" />
           <span>Photo/Video</span>
           <input 
+            ref={fileInputRef}
             id="fileInput" 
             type="file" 
             className="hidden" 

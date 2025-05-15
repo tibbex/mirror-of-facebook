@@ -2,4 +2,8 @@
 project_id = "hinkgrvzhrfrbczxxbis"
 
 [realtime]
+enabled = true
 tables = ["posts", "comments", "profiles"]
+
+[api]
+enabled_apis = ["rest", "graphql_schema", "storage"]
