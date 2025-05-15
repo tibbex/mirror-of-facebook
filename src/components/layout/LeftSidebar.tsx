@@ -3,7 +3,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Video, BookOpen, MessageCircle, Settings } from "lucide-react";
+import { Home, Video, BookOpen, MessageCircle, Settings, Sparkles } from "lucide-react";
 import { AuthContext } from "@/App";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -91,6 +91,7 @@ const LeftSidebar = () => {
         <SidebarItem icon={Home} label="Home" to="/" active={location.pathname === '/'} />
         <SidebarItem icon={Video} label="Videos" to="/videos" active={location.pathname === '/videos'} />
         <SidebarItem icon={BookOpen} label="Resources" to="/resources" active={location.pathname === '/resources'} />
+        <SidebarItem icon={Sparkles} label="AI Tutor" to="/ai-tutor" active={location.pathname === '/ai-tutor'} />
         <SidebarItem icon={MessageCircle} label="Messaging" to="/messaging" active={location.pathname === '/messaging'} />
         <SidebarItem icon={Settings} label="Settings" to="/settings" active={location.pathname === '/settings'} />
 

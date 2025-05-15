@@ -12,7 +12,8 @@ import {
   Video,
   BookOpen,
   Settings,
-  X 
+  X,
+  Sparkles 
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { currentUser } from "@/data/mockData";
@@ -66,6 +67,11 @@ const Header = () => {
             <Link to="/resources">
               <Button variant="ghost" className="px-3 lg:px-6 py-6 rounded-none border-b-2 border-transparent hover:border-pink-600 hover:bg-gradient-to-b hover:from-pink-50 hover:to-transparent hover:text-pink-600">
                 <BookOpen className="h-6 w-6" />
+              </Button>
+            </Link>
+            <Link to="/ai-tutor">
+              <Button variant="ghost" className="px-3 lg:px-6 py-6 rounded-none border-b-2 border-transparent hover:border-yellow-600 hover:bg-gradient-to-b hover:from-yellow-50 hover:to-transparent hover:text-yellow-600">
+                <Sparkles className="h-6 w-6" />
               </Button>
             </Link>
             <Link to="/messaging">
@@ -138,6 +144,10 @@ const Header = () => {
             <Link to="/resources" className="flex items-center space-x-3 px-3 py-3 rounded-lg hover:bg-gray-100" onClick={() => setShowMobileMenu(false)}>
               <BookOpen className="h-6 w-6 text-pink-600" />
               <span className="font-medium">Resources</span>
+            </Link>
+            <Link to="/ai-tutor" className="flex items-center space-x-3 px-3 py-3 rounded-lg hover:bg-gray-100" onClick={() => setShowMobileMenu(false)}>
+              <Sparkles className="h-6 w-6 text-yellow-600" />
+              <span className="font-medium">AI Tutor</span>
             </Link>
             <Link to="/messaging" className="flex items-center space-x-3 px-3 py-3 rounded-lg hover:bg-gray-100" onClick={() => setShowMobileMenu(false)}>
               <MessageCircle className="h-6 w-6 text-indigo-600" />

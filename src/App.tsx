@@ -13,6 +13,7 @@ import Videos from "./pages/Videos";
 import Resources from "./pages/Resources";
 import Messaging from "./pages/Messaging";
 import Settings from "./pages/Settings";
+import AITutor from "./pages/AITutor";
 import { supabase } from "./integrations/supabase/client";
 import { User, Session } from '@supabase/supabase-js';
 
@@ -169,6 +170,10 @@ const App = () => {
               <Route 
                 path="/messaging" 
                 element={isAuthenticated ? <Messaging /> : <Navigate to="/sign-in" />} 
+              />
+              <Route 
+                path="/ai-tutor" 
+                element={isAuthenticated ? <AITutor /> : <Navigate to="/sign-in" />} 
               />
               <Route 
                 path="/settings" 
