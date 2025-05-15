@@ -104,14 +104,14 @@ const RightSidebar = () => {
             <Button key={contact.id} variant="ghost" className="w-full justify-start">
               <div className="relative">
                 <Avatar className="h-8 w-8 mr-3">
-                  <AvatarImage src={contact.user.profilePic} alt={contact.user.name} />
-                  <AvatarFallback>{contact.user.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={contact.profilePic} alt={contact.name} />
+                  <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                {contact.active && (
+                {contact.online && (
                   <span className="absolute bottom-0 right-2 h-2.5 w-2.5 rounded-full bg-green-500 ring-1 ring-white"></span>
                 )}
               </div>
-              <span className="text-sm">{contact.user.name}</span>
+              <span className="text-sm">{contact.name}</span>
               {contact.unread > 0 && (
                 <Badge variant="destructive" className="ml-auto py-0 px-1.5 h-5 min-w-[20px]">
                   {contact.unread}
