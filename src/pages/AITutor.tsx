@@ -56,8 +56,8 @@ const AITutor = () => {
     setIsLoading(true);
     
     try {
-      // Make API request to Hugging Face
-      const response = await fetch("https://router.huggingface.co/novita/v3/openai/chat/completions", {
+      // Make API request to Fireworks AI
+      const response = await fetch("https://router.huggingface.co/fireworks-ai/inference/v1/chat/completions", {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer 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',
@@ -70,7 +70,7 @@ const AITutor = () => {
               "content": input
             }
           ],
-          "model": "deepseek/deepseek-prover-v2-671b"
+          "model": "accounts/fireworks/models/qwen3-235b-a22b"
         })
       });
       
@@ -190,7 +190,7 @@ const AITutor = () => {
                 </Button>
               </div>
               <div className="text-xs text-gray-500 mt-2 text-center">
-                Powered by deepseek-prover-v2-671b
+                Powered by Qwen 3 (235B)
               </div>
             </div>
           </div>
